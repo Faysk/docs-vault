@@ -55,8 +55,10 @@
     d.querySelector('.nav-item[data-route="documents"]').click();
     await until(()=>d.querySelector('[data-view="tests/slow-demo.html"]'),'slow doc card');
     d.querySelector('[data-view="tests/slow-demo.html"]').click();
+    // Synchronous invariant: inserting the iframe must NOT immediately dismiss the loader.
+    // Headless Chrome virtual time can advance timers ahead of real HTTP delays.
+    check(body.getAttribute('aria-busy')==='true'&&body.querySelector('.loading-preview'),'loading disappeared on insertion');
     await wait(120);
-    check(body.getAttribute('aria-busy')==='true'&&body.querySelector('.loading-preview'),'loading disappeared before iframe completed');
     log.push('Delayed iframe busy OK');
     d.querySelector('#viewer [data-close-viewer]').click();
     check(viewer.hidden,'viewer did not close during request');
