@@ -374,31 +374,112 @@
 
   function viewerMetaHTML(d,path){const e=searchEntryByPath.get(path),rec=recordSourceMap.get(path);return`<div class="meta-line"><span>Espaço</span><strong>${esc(ownerLabel[d.owner]||d.owner)}</strong></div><div class="meta-line"><span>Categoria</span><strong>${esc(d.category||'—')}</strong></div><div class="meta-line"><span>Formato</span><strong>${esc(d.format||extOf(path).toUpperCase())}</strong></div>${d.size?`<div class="meta-line"><span>Tamanho</span><strong>${sizeFmt(d.size)}</strong></div>`:''}${e?.pages?`<div class="meta-line"><span>Páginas</span><strong>${e.pages}</strong></div>`:''}<div class="meta-line"><span>Busca interna</span><strong>${e?.text?'Disponível':'Metadados'}</strong></div>${rec?.expires?`<div class="meta-line"><span>Validade</span><strong>${fmtDate(rec.expires)}</strong></div>`:''}`;}
 
-  let viewerFocus=null,previewRequest=0;
+  let viewerFocus=null,previewRequest=0,previewController=null,previewDeadline=null;
+  const PREVIEW_TIMEOUT_MS=18000;
+  function stopPreviewWork(){
+    clearTimeout(previewDeadline);previewDeadline=null;
+    if(previewController){previewController.abort();previewController=null;}
+  }
+  function previewLoading(body){
+    body.setAttribute('aria-busy','true');
+    body.innerHTML='<div class="loading-preview" role="status"><span><i aria-hidden="true"></i>Preparando visualização local…</span></div>';
+  }
+  function previewReady(body){
+    body.setAttribute('aria-busy','false');
+    body.querySelector('.loading-preview')?.remove();
+  }
+  function previewError(body,path,message){
+    body.setAttribute('aria-busy','false');
+    body.innerHTML=`<div class="unsupported preview-error" role="alert"><span class="empty-icon">${icons.alert}</span><h3>${esc(message)}</h3><p>O original continua disponível. Você pode tentar novamente ou abri-lo diretamente.</p><div class="preview-error-actions"><button type="button" class="button primary" data-retry-preview>Tentar novamente</button><a class="button secondary" href="${esc(path)}" target="_blank" rel="noopener">Abrir original</a></div></div>`;
+  }
   async function openViewer(path,title,opts={}){
     const viewer=document.getElementById('viewer'),body=document.getElementById('viewerBody'),open=document.getElementById('viewerOpen'),download=document.getElementById('viewerDownload'),badge=document.getElementById('viewerBadge'),d=docMeta(path,title),ext=extOf(path);
     if(viewer.hidden)viewerFocus=document.activeElement;
-    const request=++previewRequest;
+    stopPreviewWork();
+    const request=++previewRequest,controller=new AbortController();
+    previewController=controller;
     currentViewer={path,title:title||d.title,fromRoute:Boolean(opts.fromRoute)};
     document.getElementById('viewerTitle').textContent=currentViewer.title||'Documento';document.getElementById('viewerPath').textContent=path;document.getElementById('viewerEyebrow').textContent=location.protocol.startsWith('http')?'Visualização local · rede LAN':'Visualização local';document.getElementById('viewerEyebrow').classList.toggle('viewer-eyebrow-network',location.protocol.startsWith('http'));
     open.href=path;download.href=path;download.setAttribute('download',basename(path));badge.textContent=ext.toUpperCase()||'DOC';document.getElementById('viewerMeta').innerHTML=viewerMetaHTML(d,path);document.getElementById('viewerNote').value=localState.notes[path]||'';syncViewerFavorite();
-    body.innerHTML='<div class="loading-preview"><span><i></i>Preparando visualização local…</span></div>';
+    previewLoading(body);
     viewer.hidden=false;document.querySelector('.app-shell').inert=true;document.querySelector('button[data-close-viewer]').focus();document.body.style.overflow='hidden';recordRecent(path,currentViewer.title);
-    try{await renderPreview(path,currentViewer.title,request);}catch(err){if(request!==previewRequest)return;console.error(err);body.innerHTML=unsupportedHTML(path,'Não foi possível montar a pré-visualização. O original continua disponível.');}
+    previewDeadline=setTimeout(()=>{
+      if(request!==previewRequest||controller.signal.aborted)return;
+      controller.abort();previewError(body,path,'A visualização demorou demais. Tente novamente.');
+    },PREVIEW_TIMEOUT_MS);
+    try{
+      const available=await renderPreview(path,currentViewer.title,request,controller.signal);
+      if(request!==previewRequest||controller.signal.aborted)return;
+      clearTimeout(previewDeadline);previewDeadline=null;
+      if(available===false)previewError(body,path,'Pré-visualização indisponível neste navegador.');
+      else previewReady(body);
+    }catch(err){
+      if(request!==previewRequest||controller.signal.aborted)return;
+      clearTimeout(previewDeadline);previewDeadline=null;
+      console.warn('Pré-visualização indisponível:',err);
+      previewError(body,path,err?.message?.startsWith('HTTP ')?`Arquivo indisponível (${err.message}).`:'Não foi possível carregar a visualização.');
+    }
   }
   function unsupportedHTML(path,msg='Pré-visualização não disponível neste navegador'){return`<div class="unsupported"><span class="empty-icon">${icons.file}</span><h3>${esc(msg)}</h3><p>O arquivo original continua intacto dentro do pacote.</p><a class="button primary" href="${esc(path)}" target="_blank" rel="noopener">${icons.external}Abrir original</a></div>`;}
-  async function renderPreview(path,title,request){
-    const body=document.getElementById('viewerBody'),ext=extOf(path);body.innerHTML='';
-    if(['jpg','jpeg','png','webp','gif','svg'].includes(ext)){const img=document.createElement('img');img.src=path;img.alt=title||'Documento';body.appendChild(img);return;}
-    if(ext==='pdf'){const f=document.createElement('iframe');f.src=path;f.title=title||'PDF';body.appendChild(f);return;}
-    if(ext==='docx'&&PV.docx?.[path]){const f=document.createElement('iframe');f.src=PV.docx[path];f.title=`Leitura de ${title||'documento Word'}`;body.appendChild(f);return;}
-    if(ext==='html'||ext==='htm'){const f=document.createElement('iframe');f.src=path;f.title=title||'HTML';body.appendChild(f);return;}
-    if(['md','markdown','txt','log','ini','yaml','yml','xml','json','csv'].includes(ext)){
-      let raw=PV.text?.[path]?.content;if(raw==null){raw=await fetchLocalText(path);}if(request!==previewRequest)return;if(ext==='md'||ext==='markdown')renderMarkdownReader(raw);else if(ext==='csv')renderCsvReader(raw);else if(ext==='json')renderJsonReader(raw);else renderPlainReader(raw);return;
-    }
-    body.innerHTML=unsupportedHTML(path);
+  function waitForMedia(node,src,signal,body){
+    return new Promise((resolve,reject)=>{
+      if(signal.aborted){reject(new DOMException('Cancelado','AbortError'));return;}
+      let settled=false;
+      const cleanup=()=>{node.removeEventListener('load',loaded);node.removeEventListener('error',failed);signal.removeEventListener('abort',aborted);};
+      const complete=err=>{if(settled)return;settled=true;cleanup();if(err)reject(err);else resolve();};
+      const loaded=()=>complete();
+      const failed=()=>complete(new Error('Recurso de visualização indisponível'));
+      const aborted=()=>complete(new DOMException('Cancelado','AbortError'));
+      node.addEventListener('load',loaded);node.addEventListener('error',failed);signal.addEventListener('abort',aborted,{once:true});
+      body.appendChild(node);
+      node.src=src; // Attach listeners BEFORE setting src, including on fast local file:// loads.
+    });
   }
-  async function fetchLocalText(path){const r=await fetch(path,{cache:'no-store'});if(!r.ok)throw new Error(`HTTP ${r.status}`);return r.text();}
+  async function checkEmbeddable(path,signal){
+    // An iframe's load may fire for a 404 error page; preflight on HTTP(S).
+    // file:// has no reliable HEAD/fetch: rely on the browser load signal only.
+    if(location.protocol!=='http:'&&location.protocol!=='https:')return;
+    if(/^(?:data:|blob:)/i.test(path))return;
+    let response=await fetch(path,{method:'HEAD',signal,cache:'no-store'});
+    if(response.status===405||response.status===501){
+      response=await fetch(path,{headers:{Range:'bytes=0-0'},signal,cache:'no-store'});
+      if(response.body&&typeof response.body.cancel==='function')response.body.cancel().catch(()=>{});
+    }
+    if(!response.ok)throw new Error('HTTP '+response.status);
+  }
+  async function renderPreview(path,title,request,signal){
+    const body=document.getElementById('viewerBody'),ext=extOf(path);
+    if(['jpg','jpeg','png','webp','gif','svg'].includes(ext)){
+      const img=document.createElement('img');img.alt=title||'Documento';
+      await waitForMedia(img,path,signal,body);return true;
+    }
+    if(ext==='pdf'||ext==='html'||ext==='htm'){
+      await checkEmbeddable(path,signal);
+      if(request!==previewRequest||signal.aborted)return;
+      const frame=document.createElement('iframe');frame.title=title||(ext==='pdf'?'PDF':'HTML');
+      await waitForMedia(frame,path,signal,body);return true;
+    }
+    if(ext==='docx'||['md','markdown','txt','log','ini','yaml','yml','xml','json','csv'].includes(ext)){
+      try{await ensurePreviewData(path);}catch(err){console.warn('Prévia empacotada indisponível; tentando arquivo original:',err);}
+      if(request!==previewRequest||signal.aborted)return;
+      if(ext==='docx'){
+        if(!PV.docx?.[path])return false;
+        await checkEmbeddable(PV.docx[path],signal);
+        const frame=document.createElement('iframe');frame.title=`Leitura de ${title||'documento Word'}`;
+        await waitForMedia(frame,PV.docx[path],signal,body);return true;
+      }
+      let raw=PV.text?.[path]?.content;
+      if(raw==null)raw=await fetchLocalText(path,signal);
+      if(request!==previewRequest||signal.aborted)return;
+      if(ext==='md'||ext==='markdown')renderMarkdownReader(raw);
+      else if(ext==='csv')renderCsvReader(raw);
+      else if(ext==='json')renderJsonReader(raw);
+      else renderPlainReader(raw);
+      return true;
+    }
+    return false;
+  }
+  async function fetchLocalText(path,signal){const r=await fetch(path,{cache:'no-store',signal});if(!r.ok)throw new Error(`HTTP ${r.status}`);return r.text();}
 
   function inlineMd(raw){
     const tokens=[];let s=String(raw);
@@ -432,7 +513,7 @@
   function renderJsonReader(raw){let pretty=raw;try{pretty=JSON.stringify(JSON.parse(raw),null,2);}catch{}document.getElementById('viewerBody').innerHTML=readerShell(`<div class="json-tree"><pre>${esc(pretty)}</pre></div>`,raw,[]);bindReaderModes();}
   function renderPlainReader(raw){document.getElementById('viewerBody').innerHTML=readerShell(`<pre class="raw-source" style="margin:0">${esc(raw)}</pre>`,raw,[]);bindReaderModes();}
 
-  function closeViewer(){previewRequest++;document.querySelector('.app-shell').inert=false;const viewer=document.getElementById('viewer');viewer.hidden=true;document.body.style.overflow='';document.getElementById('viewerBody').innerHTML='';currentViewer=null;if(viewerFocus?.isConnected)viewerFocus.focus();if(currentHash().startsWith('open/'))location.hash='dashboard';}
+  function closeViewer(){stopPreviewWork();previewRequest++;document.querySelector('.app-shell').inert=false;const viewer=document.getElementById('viewer');viewer.hidden=true;document.body.style.overflow='';document.getElementById('viewerBody').innerHTML='';document.getElementById('viewerBody').removeAttribute('aria-busy');currentViewer=null;if(viewerFocus?.isConnected)viewerFocus.focus();if(currentHash().startsWith('open/'))location.hash='dashboard';}
   function navigateViewer(delta){if(!currentViewer)return;const idx=D.documents.findIndex(d=>d.path===currentViewer.path);if(idx<0)return;const next=D.documents[(idx+delta+D.documents.length)%D.documents.length];openViewer(next.path,next.title);}
 
   function toast(text){const t=document.getElementById('toast');clearTimeout(toastTimer);t.textContent=text;t.classList.add('show');toastTimer=setTimeout(()=>t.classList.remove('show'),1900);}
@@ -449,6 +530,7 @@
   async function importStateFile(file){try{const data=JSON.parse(await file.text()),s=data.state||data;if(!s||typeof s!=='object')throw new Error('inválido');localState={...loadState(),...s};favorites=new Set(Array.isArray(s.favorites)?s.favorites:[]);saveState();setTheme(localState.theme||'auto');setPrivacy(Boolean(localState.privacy));utilityDialog.close();route();toast('Backup importado');}catch{toast('Não consegui importar esse backup');}}
   function resetState(){if(!confirm('Limpar favoritos, recentes, notas e estados de pendências deste navegador?'))return;localState={favorites:[],recents:[],completedTasks:{},notes:{},theme:'auto',privacy:false};favorites=new Set();safeStorageSet('vault-state-v3',JSON.stringify(localState));setTheme('auto');setPrivacy(false);utilityDialog.close();route();toast('Estado local limpo');}
 
+  document.getElementById('viewerBody').addEventListener('click',e=>{if(e.target.closest('[data-retry-preview]')&&currentViewer)openViewer(currentViewer.path,currentViewer.title,{fromRoute:currentViewer.fromRoute});});
   document.querySelectorAll('[data-close-viewer]').forEach(b=>b.onclick=closeViewer);
   document.querySelectorAll('.nav-item,.brand').forEach(b=>b.onclick=()=>{cancelPendingSearch();if(search.value){search.value='';clearSearch.hidden=true;}const same=currentHash()===b.dataset.route;location.hash=b.dataset.route;closeSidebar();if(same)route();});
   document.getElementById('menuToggle').onclick=()=>sidebar.classList.contains('open')?closeSidebar():openSidebar();sidebarBackdrop.onclick=closeSidebar;
