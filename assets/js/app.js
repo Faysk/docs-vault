@@ -19,7 +19,16 @@
   const docState={owner:'all',category:'all',format:'all',sort:'name',favorite:false};
   const docByPath=new Map(D.documents.map(d=>[d.path,d]));
   const searchEntryByPath=new Map((SI?.entries||[]).map(e=>[e.path,e])); // Legacy preloaded indexes: metadata only, no boot full-text normalization.
-  const searchNormByPath=new Map(); // Filled only when text is actually searched, never during boot.
+  const searchNormByPath=new Map(); // LRU, populated only when text is searched.
+  const SEARCH_TEXT_CACHE_LIMIT=256;
+  function normalizedFor(path,raw){
+    if(searchNormByPath.has(path)){
+      const cached=searchNormByPath.get(path);searchNormByPath.delete(path);searchNormByPath.set(path,cached);return cached;
+    }
+    const normalized=norm(raw);searchNormByPath.set(path,normalized);
+    if(searchNormByPath.size>SEARCH_TEXT_CACHE_LIMIT)searchNormByPath.delete(searchNormByPath.keys().next().value);
+    return normalized;
+  }
   let indexPromise=null,previewBundlePromise=null;
   const previewChunkPromises=new Map(),previewChunkLRU=[];
   const PREVIEW_CACHE_LIMIT=6;
@@ -180,7 +189,7 @@
   function buttonView(path,title,label='Visualizar'){return`<button class="button small" type="button" data-view="${esc(path)}" data-title="${esc(title)}">${icons.eye}${esc(label)}</button>`;}
   function favoriteButton(path){const active=favorites.has(path);return`<button class="doc-favorite ${active?'active':''}" type="button" data-favorite="${esc(path)}" aria-label="${active?'Remover dos favoritos':'Adicionar aos favoritos'}" title="${active?'Remover dos favoritos':'Favoritar'}">${icons.star}</button>`;}
   function highlightText(s,q){let out=esc(s);const tokens=String(q).trim().split(/\s+/).filter(t=>t.length>1).sort((a,b)=>b.length-a.length);for(const t of tokens){const safe=t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');try{out=out.replace(new RegExp(`(${safe})`,'ig'),'<mark>$1</mark>');}catch{}}return out;}
-  function snippetFor(path,q){const e=searchEntryByPath.get(path);if(!e?.text)return'';const raw=e.text.replace(/\s+/g,' ').trim();const n=searchNormByPath.get(path)||norm(raw);const tokens=norm(q).split(/\s+/).filter(Boolean);let idx=tokens.map(t=>n.indexOf(t)).filter(i=>i>=0).sort((a,b)=>a-b)[0]??0;const start=Math.max(0,idx-90),end=Math.min(raw.length,idx+210);const s=(start?'…':'')+raw.slice(start,end)+(end<raw.length?'…':'');return highlightText(s,q);}
+  function snippetFor(path,q,queryTokens){const e=searchEntryByPath.get(path);if(!e?.text)return'';const raw=e.text.replace(/\s+/g,' ').trim();const n=normalizedFor(path,e.text).replace(/\s+/g,' ').trim();const tokens=queryTokens||norm(q).split(/\s+/).filter(Boolean);let idx=tokens.map(t=>n.indexOf(t)).filter(i=>i>=0).sort((a,b)=>a-b)[0]??0;const start=Math.max(0,idx-90),end=Math.min(raw.length,idx+210);const s=(start?'…':'')+raw.slice(start,end)+(end<raw.length?'…':'');return highlightText(s,q);}
   function docCard(d,opts={}){
     const fmt=norm(d.format).replace(/\s+/g,'-'),ext=extOf(d.path).toUpperCase();
     const snippet=opts.snippet||'';
@@ -294,8 +303,7 @@
         if(request!==searchSequence||search.value.trim()!==q)return;
         const d=D.documents[i],meta=matchesFields(`${d.title} ${d.category} ${d.format} ${d.path} ${ownerLabel[d.owner]||''}`);
         const entry=searchEntryByPath.get(d.path);
-        let content=searchNormByPath.get(d.path);
-        if(entry?.text&&content===undefined){content=norm(entry.text);searchNormByPath.set(d.path,content);}
+        const content=!meta&&entry?.text?normalizedFor(d.path,entry.text):null;
         if(meta||(content&&matchesTokens(content)))docs.push({d,meta});
         if((i+1)%SEARCH_SLICE===0)await pauseSearch();
       }
@@ -305,9 +313,7 @@
         if(request!==searchSequence||search.value.trim()!==q)return;
         const e=entries[i];
         if(e.kind==='markdown-dossier'&&e.text){
-          let n=searchNormByPath.get(e.path);
-          if(n===undefined){n=norm(e.text);searchNormByPath.set(e.path,n);}
-          if(matchesTokens(n))dossierHits.push({d:pseudoDoc(e.path)});
+          if(matchesTokens(normalizedFor(e.path,e.text)))dossierHits.push({d:pseudoDoc(e.path)});
         }
         if((i+1)%SEARCH_SLICE===0)await pauseSearch();
       }
@@ -319,8 +325,8 @@
       ${facts.length?`<div class="section-title"><div><h2>Dados estruturados</h2></div></div>${pageHTML('search-facts',facts,({owner,p,f})=>`<div class="fact-result ${f[2]?'sensitive':''}"><div><label>${esc(p.short)} · ${esc(f[0])}</label><strong class="fact-value">${esc(f[1])}</strong></div><button class="button small" type="button" data-route="${owner}">Abrir ${icons.arrow}</button></div>`,'fact-result-list')}`:''}
       ${records.length?`<div class="section-title"><div><h2>Registros</h2></div></div>${pageHTML('search-records',records,recordCard,'records-grid')}`:''}
       ${tasks.length?`<div class="section-title"><div><h2>Pendências</h2></div></div>${pageHTML('search-tasks',tasks,taskCard,'task-list')}`:''}
-      ${docs.length?`<div class="section-title"><div><h2>Arquivos</h2><p>Busca no nome e no texto extraível de PDFs/Word.</p></div></div>${pageHTML('search-documents',docs,x=>docCard(x.d,{snippet:snippetFor(x.d.path,q)}),'docs-grid')}`:''}
-      ${dossierHits.length?`<div class="section-title"><div><h2>Dossiês em Markdown</h2></div></div>${pageHTML('search-dossiers',dossierHits,x=>docCard(x.d,{snippet:snippetFor(x.d.path,q)}),'docs-grid')}`:''}
+      ${docs.length?`<div class="section-title"><div><h2>Arquivos</h2><p>Busca no nome e no texto extraível de PDFs/Word.</p></div></div>${pageHTML('search-documents',docs,x=>docCard(x.d,{snippet:snippetFor(x.d.path,q,tokens)}),'docs-grid')}`:''}
+      ${dossierHits.length?`<div class="section-title"><div><h2>Dossiês em Markdown</h2></div></div>${pageHTML('search-dossiers',dossierHits,x=>docCard(x.d,{snippet:snippetFor(x.d.path,q,tokens)}),'docs-grid')}`:''}
       ${!total?emptyState('Nenhum resultado','Tente nome, categoria ou uma frase presente em PDF/Word.'):''}</div>`;
       main.innerHTML=html;
       search.setAttribute('aria-busy','false');main.setAttribute('aria-busy','false');
