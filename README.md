@@ -60,9 +60,10 @@ O leitor mantém indicação de ocupado enquanto uma imagem, iframe ou texto est
 node tests/test_dates.cjs
 node tests/test_progressive.cjs
 node --check assets/js/app.js
+node tests/browser_smoke.cjs  # requer Chromium/Chrome instalado
 ```
 
-Os testes usam somente texto e caminhos sintéticos (127/1.000/5.000 arquivos), verificando a limitação de cards, atualização mais recente, cancelamento, espera por `load`, erros de mídia, simulação de HTTP 404 e abort. Imprimem tempo JS e variação aproximada do heap **no Node**, não medições de browser/telefone. Para aprovar em produção ainda é necessário comparar o JS crítico e LCP/INP/long tasks no Chrome DevTools, conferir foco/scroll/leitor de tela e realizar testes reais no S7/Android 8 com rede lenta e erros simulados. Não alegar que as metas de INP ou redução percentual foram medidas sem trace.
+A normalização full-text também utiliza um cache LRU de até **256 entradas** em memória. Os testes usam somente texto e caminhos sintéticos (127/1.000/5.000 arquivos), verificando a limitação de cards, atualização mais recente, cancelamento, espera por `load`, erros de mídia, simulação de HTTP 404 e abort. Imprimem tempo JS e variação aproximada do heap **no Node**, não medições de browser/telefone. Para aprovar em produção ainda é necessário comparar o JS crítico e LCP/INP/long tasks no Chrome DevTools, conferir foco/scroll/leitor de tela e realizar testes reais no S7/Android 8 com rede lenta e erros simulados. Não alegar que as metas de INP ou redução percentual foram medidas sem trace.
 
 As observações são sobre o checkout público sanitizado. O backend, gzip, cabeçalhos de cache e arquivos persistentes no microSD são responsabilidade da implantação local / `network-observatory`. Nunca exponha índices privados via cache público e nunca copie dados reais para fixtures deste repositório.
 
