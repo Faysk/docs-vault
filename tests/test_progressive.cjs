@@ -30,7 +30,7 @@ function searchContext(size,delay=()=>Promise.resolve()){
     searchAnnouncement(message){announcements.push(message);},
     ensureSearchIndex:async()=>c.SI,pauseSearch:delay,
     searchEntryByPath:new Map(entries.map(e=>[e.path,e])),
-    searchNormByPath:new Map(),resultPages:results,PAGE_SIZE,SEARCH_SLICE:60,
+    searchNormByPath:new Map(),resultPages:results,PAGE_SIZE,SEARCH_SLICE:60,SEARCH_TEXT_CACHE_LIMIT:256,
     norm:s=>String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase(),
     ownerLabel:{demoa:'Pessoa A'},esc:s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;'),
     plural:(n,one)=>n+' '+one+'s',emptyState:()=>'<div class="empty"></div>',
@@ -39,7 +39,7 @@ function searchContext(size,delay=()=>Promise.resolve()){
     icons:{arrow:'→'},console,Promise,setTimeout
   };
   vm.createContext(c);
-  vm.runInContext(pageHTML+';'+searchView,c);
+  vm.runInContext(get('  function normalizedFor(path,raw){','  let indexPromise=')+';'+pageHTML+';'+searchView,c);
   return{c,results,updates,announcements};
 }
 async function searchSuite(){
@@ -49,6 +49,7 @@ async function searchSuite(){
     await vm.runInContext('searchView("alpha")',c);
     const elapsed=performance.now()-t0,heap=process.memoryUsage().heapUsed-before;
     assert.equal(results.get('search-documents').items.length,size);
+    assert(c.searchNormByPath.size<=256,'Normalized full-text cache must remain bounded');
     assert.equal((c.main.innerHTML.match(/class="doc-card"/g)||[]).length,PAGE_SIZE,'DOM cards should be page-limited');
     assert(announcements.at(-1).includes(size+' resultados'));
     console.log('Search fixture',size,'JS elapsed',elapsed.toFixed(1)+'ms','heap delta',(heap/1048576).toFixed(2)+'MiB','visible cards',PAGE_SIZE);
