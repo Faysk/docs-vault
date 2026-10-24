@@ -18,7 +18,7 @@
   const threshold=Number(D.thresholdDays||90);
   const docState={owner:'all',category:'all',format:'all',sort:'name',favorite:false};
   const docByPath=new Map(D.documents.map(d=>[d.path,d]));
-  const searchEntryByPath=new Map();
+  const searchEntryByPath=new Map((SI?.entries||[]).map(e=>[e.path,e])); // Legacy preloaded indexes: metadata only, no boot full-text normalization.
   const searchNormByPath=new Map(); // Filled only when text is actually searched, never during boot.
   let indexPromise=null,previewBundlePromise=null;
   const previewChunkPromises=new Map(),previewChunkLRU=[];
