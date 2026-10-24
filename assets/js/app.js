@@ -262,35 +262,78 @@
     if(lockedOwner&&!standalone)docState.owner=lockedOwner;const base=D.documents.filter(d=>!lockedOwner||d.owner===lockedOwner),categories=[...new Set(base.map(d=>d.category))].sort((a,b)=>a.localeCompare(b,'pt-BR'));if(docState.category!=='all'&&!categories.includes(docState.category))docState.category='all';const docs=filteredDocs(lockedOwner),formats=[...new Set(base.map(d=>d.format))].sort();
     const ownerControls=lockedOwner?'':`<div class="seg-group" aria-label="Filtrar por espaço">${[['all','Todos'],['demoa','Demoa'],['demob','Demob'],['casa','Casa']].map(([v,l])=>`<button type="button" class="seg-button ${docState.owner===v?'active':''}" data-doc-owner="${v}">${l}</button>`).join('')}</div>`;
     const head=standalone?'':`<div class="document-header"><div class="page-head" style="margin:0"><div><p class="eyebrow">Biblioteca local</p><h1>Documentos</h1><p>${D.documents.length} arquivos indexados · ${D.searchStats?.fullTextDocuments||0} com busca interna de conteúdo.</p></div></div><div class="head-actions"><button class="button" type="button" data-route="dashboard">${icons.arrow}Painel</button></div></div>`;
-    const html=`${head}<div class="library-toolbar">${ownerControls}<div class="seg-group" aria-label="Filtrar por formato"><button type="button" class="seg-button ${docState.format==='all'?'active':''}" data-doc-format="all">Todos</button>${formats.map(f=>`<button type="button" class="seg-button ${docState.format===f?'active':''}" data-doc-format="${esc(f)}">${esc(f)}</button>`).join('')}</div><button type="button" class="seg-button ${docState.favorite?'active':''}" data-doc-favorite-filter="1">${icons.star} Favoritos</button><div class="toolbar-spacer"></div><div class="select-wrap"><select id="docSort" aria-label="Ordenar documentos"><option value="name" ${docState.sort==='name'?'selected':''}>Nome A–Z</option><option value="recent" ${docState.sort==='recent'?'selected':''}>Abertos recentemente</option><option value="size" ${docState.sort==='size'?'selected':''}>Maior arquivo</option><option value="owner" ${docState.sort==='owner'?'selected':''}>Por espaço</option></select></div><span class="library-count">${plural(docs.length,'arquivo')}</span></div><div class="category-strip"><button type="button" class="chip-button ${docState.category==='all'?'active':''}" data-doc-category="all">Todas as categorias</button>${categories.map(c=>`<button type="button" class="chip-button ${docState.category===c?'active':''}" data-doc-category="${esc(c)}">${esc(c)}</button>`).join('')}</div><div class="docs-grid">${docs.map(d=>docCard(d,{recentTime:recentTimestamp(d.path)||null})).join('')||emptyState('Nenhum documento neste filtro','Tente outra categoria, formato ou espaço.')}</div>`;
+    const html=`${head}<div class="library-toolbar">${ownerControls}<div class="seg-group" aria-label="Filtrar por formato"><button type="button" class="seg-button ${docState.format==='all'?'active':''}" data-doc-format="all">Todos</button>${formats.map(f=>`<button type="button" class="seg-button ${docState.format===f?'active':''}" data-doc-format="${esc(f)}">${esc(f)}</button>`).join('')}</div><button type="button" class="seg-button ${docState.favorite?'active':''}" data-doc-favorite-filter="1">${icons.star} Favoritos</button><div class="toolbar-spacer"></div><div class="select-wrap"><select id="docSort" aria-label="Ordenar documentos"><option value="name" ${docState.sort==='name'?'selected':''}>Nome A–Z</option><option value="recent" ${docState.sort==='recent'?'selected':''}>Abertos recentemente</option><option value="size" ${docState.sort==='size'?'selected':''}>Maior arquivo</option><option value="owner" ${docState.sort==='owner'?'selected':''}>Por espaço</option></select></div><span class="library-count">${plural(docs.length,'arquivo')}</span></div><div class="category-strip"><button type="button" class="chip-button ${docState.category==='all'?'active':''}" data-doc-category="all">Todas as categorias</button>${categories.map(c=>`<button type="button" class="chip-button ${docState.category===c?'active':''}" data-doc-category="${esc(c)}">${esc(c)}</button>`).join('')}</div>${docs.length?pageHTML('library',docs,d=>docCard(d,{recentTime:recentTimestamp(d.path)||null}),'docs-grid'):emptyState('Nenhum documento neste filtro','Tente outra categoria, formato ou espaço.')}`;
     if(standalone)return html;main.innerHTML=`<div class="page-shell">${html}</div>`;bindDynamic();
   }
 
   function favoritesView(){
     const paths=[...favorites],docs=paths.map(p=>pseudoDoc(p)).sort((a,b)=>a.title.localeCompare(b.title,'pt-BR'));
-    main.innerHTML=`<div class="page-shell"><div class="page-banner"><div><p class="eyebrow">Atalhos locais</p><h1>Favoritos</h1><p>Fixados apenas neste navegador. O arquivo original não é alterado.</p></div><span class="banner-icon">${icons.star}</span></div><div class="docs-grid">${docs.map(d=>docCard(d)).join('')||emptyState('Nenhum favorito ainda','Abra um documento e toque na estrela. Sem burocracia, sem cartório.')}</div></div>`;bindDynamic();
+    main.innerHTML=`<div class="page-shell"><div class="page-banner"><div><p class="eyebrow">Atalhos locais</p><h1>Favoritos</h1><p>Fixados apenas neste navegador. O arquivo original não é alterado.</p></div><span class="banner-icon">${icons.star}</span></div>${docs.length?pageHTML('favorites',docs,d=>docCard(d),'docs-grid'):emptyState('Nenhum favorito ainda','Abra um documento e toque na estrela. Sem burocracia, sem cartório.')}</div>`;bindDynamic();
   }
   function recentView(){
     const docs=localState.recents.map(r=>({d:pseudoDoc(r.path,r.title),ts:r.ts}));
-    main.innerHTML=`<div class="page-shell"><div class="page-banner"><div><p class="eyebrow">Histórico local</p><h1>Recentes</h1><p>Os últimos documentos abertos neste navegador. Nada é enviado para fora.</p></div><span class="banner-icon">${icons.recent}</span></div><div class="section-title"><div><h2>${plural(docs.length,'item')}</h2></div>${docs.length?'<button class="button small ghost" type="button" data-clear-recent>Limpar histórico</button>':''}</div><div class="docs-grid">${docs.map(x=>docCard(x.d,{recentTime:x.ts})).join('')||emptyState('Histórico vazio','Abra alguns documentos e eles aparecem aqui.')}</div></div>`;bindDynamic();
+    main.innerHTML=`<div class="page-shell"><div class="page-banner"><div><p class="eyebrow">Histórico local</p><h1>Recentes</h1><p>Os últimos documentos abertos neste navegador. Nada é enviado para fora.</p></div><span class="banner-icon">${icons.recent}</span></div><div class="section-title"><div><h2>${plural(docs.length,'item')}</h2></div>${docs.length?'<button class="button small ghost" type="button" data-clear-recent>Limpar histórico</button>':''}</div>${docs.length?pageHTML('recent',docs,x=>docCard(x.d,{recentTime:x.ts}),'docs-grid'):emptyState('Histórico vazio','Abra alguns documentos e eles aparecem aqui.')}</div>`;bindDynamic();
   }
 
-  function searchView(q){
-    const nq=norm(q),records=D.records.filter(r=>matches(`${r.title} ${r.type} ${r.number||''} ${r.category} ${r.notes||''} ${ownerLabel[r.owner]}`,nq)),tasks=D.tasks.filter(t=>matches(`${t.title} ${t.notes} ${t.status} ${ownerLabel[t.owner]}`,nq)),facts=[];
-    Object.entries(D.profiles).forEach(([owner,p])=>p.facts.forEach(f=>{if(matches(`${f[0]} ${f[1]} ${p.name}`,nq))facts.push({owner,p,f});}));
-    const docs=D.documents.map(d=>{const meta=matches(`${d.title} ${d.category} ${d.format} ${d.path} ${ownerLabel[d.owner]}`,nq),content=searchNormByPath.get(d.path);const hit=meta||(content&&norm(q).trim().split(/\s+/).filter(Boolean).every(t=>content.includes(t)));return hit?{d,meta,snippet:content?snippetFor(d.path,q):''}:null;}).filter(Boolean).sort((a,b)=>Number(b.meta)-Number(a.meta)||a.d.title.localeCompare(b.d.title,'pt-BR'));
-    const dossierHits=(SI.entries||[]).filter(e=>e.kind==='markdown-dossier'&&e.text&&matches(e.text,nq)).map(e=>({d:pseudoDoc(e.path),snippet:snippetFor(e.path,q)}));
-    const total=records.length+docs.length+tasks.length+facts.length+dossierHits.length;
-    main.innerHTML=`<div class="page-shell"><div class="search-summary"><div><p class="eyebrow">Pesquisa global V3</p><h1>“${esc(q)}”</h1><p>${total?`${plural(total,'resultado')} entre metadados, perfis e conteúdo interno.`:'Nada encontrado no arquivo local.'}</p><div class="search-coverage"><i></i>${D.searchStats?.fullTextDocuments||0} documentos com texto interno indexado; imagens/scans continuam pesquisáveis por metadados.</div></div><div class="search-counts"><span class="search-count"><strong>${docs.length}</strong> arquivos</span><span class="search-count"><strong>${records.length}</strong> registros</span><span class="search-count"><strong>${facts.length}</strong> dados</span><span class="search-count"><strong>${tasks.length}</strong> pendências</span></div></div>
-      ${facts.length?`<div class="section-title"><div><h2>Dados estruturados</h2><p>Resultados em perfis e identificadores.</p></div></div><div class="fact-result-list">${facts.slice(0,12).map(({owner,p,f})=>`<div class="fact-result ${f[2]?'sensitive':''}"><div><label>${esc(p.short)} · ${esc(f[0])}</label><strong class="fact-value">${esc(f[1])}</strong></div><button class="button small" type="button" data-route="${owner}">Abrir ${icons.arrow}</button></div>`).join('')}</div>`:''}
-      ${records.length?`<div class="section-title"><div><h2>Registros</h2><p>Documentos com metadados e validade.</p></div></div><div class="records-grid">${records.map(recordCard).join('')}</div>`:''}
-      ${tasks.length?`<div class="section-title"><div><h2>Pendências</h2></div></div><div class="task-list">${tasks.map(taskCard).join('')}</div>`:''}
-      ${docs.length?`<div class="section-title"><div><h2>Arquivos</h2><p>Busca no nome e também dentro de PDFs/Word quando há texto extraível.</p></div></div><div class="docs-grid">${docs.slice(0,90).map(x=>docCard(x.d,{snippet:x.snippet})).join('')}</div>${docs.length>90?`<div class="empty" style="margin-top:10px"><strong>Mostrando os primeiros 90 arquivos</strong><p>Refine a busca para reduzir os resultados.</p></div>`:''}`:''}
-      ${dossierHits.length?`<div class="section-title"><div><h2>Dossiês em Markdown</h2><p>Conteúdo textual dos dossiês locais.</p></div></div><div class="docs-grid">${dossierHits.map(x=>docCard(x.d,{snippet:x.snippet})).join('')}</div>`:''}
-      ${!total?emptyState('Nenhum resultado','Tente nome, número de documento, categoria ou uma frase que esteja dentro de PDF/Word.'):''}</div>`;bindDynamic();
+  async function searchView(q){
+    const request=++searchSequence;resultPages.clear();
+    searchStatus(q,SI?'searching':'indexing',SI?'Pesquisando no arquivo…':'Preparando índice de busca…');
+    try{
+      await ensureSearchIndex();
+      if(request!==searchSequence||search.value.trim()!==q)return;
+      searchStatus(q,'searching','Procurando nos metadados e no conteúdo…');
+      const tokens=norm(q).trim().split(/\s+/).filter(Boolean);
+      const matchesTokens=hay=>tokens.every(t=>hay.includes(t));
+      const matchesFields=value=>matchesTokens(norm(value));
+      const records=D.records.filter(r=>matchesFields(`${r.title} ${r.type} ${r.number||''} ${r.category} ${r.notes||''} ${ownerLabel[r.owner]||''}`));
+      const tasks=D.tasks.filter(t=>matchesFields(`${t.title} ${t.notes} ${t.status} ${ownerLabel[t.owner]||''}`));
+      const facts=[];
+      Object.entries(D.profiles).forEach(([owner,p])=>(p.facts||[]).forEach(f=>{if(matchesFields(`${f[0]} ${f[1]} ${p.name}`))facts.push({owner,p,f});}));
+      const docs=[];
+      for(let i=0;i<D.documents.length;i++){
+        if(request!==searchSequence||search.value.trim()!==q)return;
+        const d=D.documents[i],meta=matchesFields(`${d.title} ${d.category} ${d.format} ${d.path} ${ownerLabel[d.owner]||''}`);
+        const entry=searchEntryByPath.get(d.path);
+        let content=searchNormByPath.get(d.path);
+        if(entry?.text&&content===undefined){content=norm(entry.text);searchNormByPath.set(d.path,content);}
+        if(meta||(content&&matchesTokens(content)))docs.push({d,meta});
+        if((i+1)%SEARCH_SLICE===0)await pauseSearch();
+      }
+      const dossierHits=[];
+      const entries=SI.entries||[];
+      for(let i=0;i<entries.length;i++){
+        if(request!==searchSequence||search.value.trim()!==q)return;
+        const e=entries[i];
+        if(e.kind==='markdown-dossier'&&e.text){
+          let n=searchNormByPath.get(e.path);
+          if(n===undefined){n=norm(e.text);searchNormByPath.set(e.path,n);}
+          if(matchesTokens(n))dossierHits.push({d:pseudoDoc(e.path)});
+        }
+        if((i+1)%SEARCH_SLICE===0)await pauseSearch();
+      }
+      if(request!==searchSequence||search.value.trim()!==q)return;
+      docs.sort((a,b)=>Number(b.meta)-Number(a.meta)||a.d.title.localeCompare(b.d.title,'pt-BR'));
+      const total=records.length+docs.length+tasks.length+facts.length+dossierHits.length;
+      resultPages.clear();
+      const html=`<div class="page-shell"><div class="search-summary"><div><p class="eyebrow">Pesquisa global V3</p><h1>“${esc(q)}”</h1><p>${total?`${plural(total,'resultado')} entre metadados, perfis e conteúdo interno.`:'Nada encontrado no arquivo local.'}</p><div class="search-coverage"><i></i>${D.searchStats?.fullTextDocuments||0} documentos com texto interno indexado; imagens/scans continuam pesquisáveis por metadados.</div></div><div class="search-counts"><span class="search-count"><strong>${docs.length}</strong> arquivos</span><span class="search-count"><strong>${records.length}</strong> registros</span><span class="search-count"><strong>${facts.length}</strong> dados</span><span class="search-count"><strong>${tasks.length}</strong> pendências</span></div></div>
+      ${facts.length?`<div class="section-title"><div><h2>Dados estruturados</h2></div></div>${pageHTML('search-facts',facts,({owner,p,f})=>`<div class="fact-result ${f[2]?'sensitive':''}"><div><label>${esc(p.short)} · ${esc(f[0])}</label><strong class="fact-value">${esc(f[1])}</strong></div><button class="button small" type="button" data-route="${owner}">Abrir ${icons.arrow}</button></div>`,'fact-result-list')}`:''}
+      ${records.length?`<div class="section-title"><div><h2>Registros</h2></div></div>${pageHTML('search-records',records,recordCard,'records-grid')}`:''}
+      ${tasks.length?`<div class="section-title"><div><h2>Pendências</h2></div></div>${pageHTML('search-tasks',tasks,taskCard,'task-list')}`:''}
+      ${docs.length?`<div class="section-title"><div><h2>Arquivos</h2><p>Busca no nome e no texto extraível de PDFs/Word.</p></div></div>${pageHTML('search-documents',docs,x=>docCard(x.d,{snippet:snippetFor(x.d.path,q)}),'docs-grid')}`:''}
+      ${dossierHits.length?`<div class="section-title"><div><h2>Dossiês em Markdown</h2></div></div>${pageHTML('search-dossiers',dossierHits,x=>docCard(x.d,{snippet:snippetFor(x.d.path,q)}),'docs-grid')}`:''}
+      ${!total?emptyState('Nenhum resultado','Tente nome, categoria ou uma frase presente em PDF/Word.'):''}</div>`;
+      main.innerHTML=html;
+      search.setAttribute('aria-busy','false');main.setAttribute('aria-busy','false');
+      searchAnnouncement(total?`${total} resultados encontrados para ${q}.`:`Nenhum resultado encontrado para ${q}.`);
+    }catch(err){
+      if(request!==searchSequence||search.value.trim()!==q)return;
+      console.error('Falha na busca:',err);
+      searchStatus(q,'error','Índice indisponível. Verifique os arquivos locais e tente novamente.',true);
+      searchAnnouncement('Erro ao preparar a pesquisa. Tente novamente.');
+    }
   }
 
-  function route(){clearTimeout(searchTimer);
+  function route(){cancelPendingSearch();
     const h=currentHash();document.querySelectorAll('.nav-item').forEach(b=>b.classList.toggle('active',h===b.dataset.route||h.startsWith(`${b.dataset.route}/`)));
     if(search.value.trim().length>=2){searchView(search.value.trim());return;}
     if(h.startsWith('open/')){dashboard();const path=h.slice(5);setTimeout(()=>openViewer(path,pseudoDoc(path).title,{fromRoute:true}),0);return;}
@@ -298,22 +341,28 @@
     main.focus({preventScroll:true});
   }
 
-  function bindDynamic(){
-    document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>openViewer(b.dataset.view,b.dataset.title));
-    document.querySelectorAll('[data-copy]').forEach(b=>b.onclick=()=>copyText(b.dataset.copy));
-    document.querySelectorAll('[data-favorite]').forEach(b=>b.onclick=e=>{e.stopPropagation();toggleFavorite(b.dataset.favorite);route();});
-    document.querySelectorAll('[data-task-toggle]').forEach(b=>b.onclick=()=>toggleTask(b.dataset.taskToggle));
-    document.querySelectorAll('[data-entity-tab]').forEach(b=>b.onclick=()=>{location.hash=b.dataset.entityTab;});
-    document.querySelectorAll('[data-route]').forEach(b=>{b.onclick=()=>{clearTimeout(searchTimer);if(search.value){search.value='';clearSearch.hidden=true;}const same=currentHash()===b.dataset.route;location.hash=b.dataset.route;closeSidebar();if(same)route();};if(b.getAttribute('role')==='button')b.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();b.click();}};});
-    document.querySelectorAll('[data-scroll]').forEach(b=>b.onclick=()=>document.getElementById(b.dataset.scroll)?.scrollIntoView({behavior:'smooth',block:'start'}));
-    document.querySelectorAll('[data-doc-owner]').forEach(b=>b.onclick=()=>{docState.owner=b.dataset.docOwner;docState.category='all';documentsView();});
-    document.querySelectorAll('[data-doc-format]').forEach(b=>b.onclick=()=>{docState.format=b.dataset.docFormat;rerenderDocs();});
-    document.querySelectorAll('[data-doc-category]').forEach(b=>b.onclick=()=>{docState.category=b.dataset.docCategory;rerenderDocs();});
-    document.querySelectorAll('[data-doc-favorite-filter]').forEach(b=>b.onclick=()=>{docState.favorite=!docState.favorite;rerenderDocs();});
-    document.querySelectorAll('[data-open-tools]').forEach(b=>b.onclick=openUtilityDialog);
-    const sort=document.getElementById('docSort');if(sort)sort.onchange=()=>{docState.sort=sort.value;rerenderDocs();};
-    const clear=document.querySelector('[data-clear-recent]');if(clear)clear.onclick=()=>{localState.recents=[];saveState();recentView();toast('Histórico local limpo');};
-  }
+  // Event delegation: dynamic cards and appended pages never need listener re-binding.
+  function bindDynamic(){}
+  main.addEventListener('click',e=>{
+    const b=e.target.closest('button,a,[role="button"]');if(!b||!main.contains(b))return;
+    if(b.hasAttribute('data-view')){openViewer(b.dataset.view,b.dataset.title);return;}
+    if(b.hasAttribute('data-copy')){copyText(b.dataset.copy);return;}
+    if(b.hasAttribute('data-favorite')){e.stopPropagation();toggleFavorite(b.dataset.favorite);route();return;}
+    if(b.hasAttribute('data-task-toggle')){toggleTask(b.dataset.taskToggle);return;}
+    if(b.hasAttribute('data-entity-tab')){location.hash=b.dataset.entityTab;return;}
+    if(b.hasAttribute('data-route')){cancelPendingSearch();search.value='';clearSearch.hidden=true;const same=currentHash()===b.dataset.route;location.hash=b.dataset.route;closeSidebar();if(same)route();return;}
+    if(b.hasAttribute('data-scroll')){document.getElementById(b.dataset.scroll)?.scrollIntoView({behavior:'smooth',block:'start'});return;}
+    if(b.hasAttribute('data-doc-owner')){docState.owner=b.dataset.docOwner;docState.category='all';rerenderDocs();return;}
+    if(b.hasAttribute('data-doc-format')){docState.format=b.dataset.docFormat;rerenderDocs();return;}
+    if(b.hasAttribute('data-doc-category')){docState.category=b.dataset.docCategory;rerenderDocs();return;}
+    if(b.hasAttribute('data-doc-favorite-filter')){docState.favorite=!docState.favorite;rerenderDocs();return;}
+    if(b.hasAttribute('data-open-tools')){openUtilityDialog();return;}
+    if(b.hasAttribute('data-clear-recent')){localState.recents=[];saveState();recentView();toast('Histórico local limpo');return;}
+    if(b.hasAttribute('data-load-more')){appendPage(b.dataset.loadMore,b);return;}
+    if(b.hasAttribute('data-retry-search')){searchView(search.value.trim());return;}
+  });
+  main.addEventListener('change',e=>{if(e.target.id==='docSort'){docState.sort=e.target.value;rerenderDocs();}});
+
   function rerenderDocs(){const[owner,tab]=currentHash().split('/');if(tab==='documents'&&D.profiles[owner])entity(owner,'documents');else documentsView();}
 
   function toggleTask(id){localState.completedTasks[id]=!isTaskDone(id);if(!localState.completedTasks[id])delete localState.completedTasks[id];saveState();route();toast(localState.completedTasks[id]?'Pendência marcada como concluída':'Pendência reaberta');}
@@ -401,7 +450,7 @@
   function resetState(){if(!confirm('Limpar favoritos, recentes, notas e estados de pendências deste navegador?'))return;localState={favorites:[],recents:[],completedTasks:{},notes:{},theme:'auto',privacy:false};favorites=new Set();safeStorageSet('vault-state-v3',JSON.stringify(localState));setTheme('auto');setPrivacy(false);utilityDialog.close();route();toast('Estado local limpo');}
 
   document.querySelectorAll('[data-close-viewer]').forEach(b=>b.onclick=closeViewer);
-  document.querySelectorAll('.nav-item,.brand').forEach(b=>b.onclick=()=>{clearTimeout(searchTimer);if(search.value){search.value='';clearSearch.hidden=true;}const same=currentHash()===b.dataset.route;location.hash=b.dataset.route;closeSidebar();if(same)route();});
+  document.querySelectorAll('.nav-item,.brand').forEach(b=>b.onclick=()=>{cancelPendingSearch();if(search.value){search.value='';clearSearch.hidden=true;}const same=currentHash()===b.dataset.route;location.hash=b.dataset.route;closeSidebar();if(same)route();});
   document.getElementById('menuToggle').onclick=()=>sidebar.classList.contains('open')?closeSidebar():openSidebar();sidebarBackdrop.onclick=closeSidebar;
   document.getElementById('privacyToggle').onclick=()=>{setPrivacy(!localState.privacy);toast(localState.privacy?'Modo privacidade ativado':'Modo privacidade desativado');};
   document.getElementById('themeToggle').onclick=()=>{const modes=['auto','light','dark'];setTheme(modes[(modes.indexOf(localState.theme)+1)%modes.length]);};
@@ -413,8 +462,8 @@
   document.getElementById('viewerNote').addEventListener('input',e=>{if(!currentViewer)return;clearTimeout(noteTimer);const path=currentViewer.path,value=e.target.value;noteTimer=setTimeout(()=>{if(value.trim())localState.notes[path]=value;else delete localState.notes[path];saveState();document.getElementById('noteSaved').textContent='Salva agora';setTimeout(()=>document.getElementById('noteSaved').textContent='Salva automaticamente',900);},250);});
   document.getElementById('exportState').onclick=exportState;document.getElementById('importState').onchange=e=>{const f=e.target.files?.[0];if(f)importStateFile(f);e.target.value='';};document.getElementById('resetState').onclick=resetState;
 
-  search.addEventListener('input',()=>{const q=search.value.trim();clearSearch.hidden=!q;clearTimeout(searchTimer);searchTimer=setTimeout(()=>{if(q.length>=2)searchView(q);else route();},70);});
-  clearSearch.onclick=()=>{search.value='';clearSearch.hidden=true;search.focus();route();};
+  search.addEventListener('input',()=>{const q=search.value.trim();clearSearch.hidden=!q;clearTimeout(searchTimer);const seq=++searchSequence;if(q.length<2){route();return;}searchStatus(q,SI?'searching':'indexing',SI?'Pesquisando…':'Preparando índice de busca…');searchTimer=setTimeout(()=>{if(seq===searchSequence)searchView(q);},90);});
+  clearSearch.onclick=()=>{cancelPendingSearch();search.value='';clearSearch.hidden=true;search.focus();route();};
   document.addEventListener('keydown',e=>{
     const typing=['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName);
     if(currentViewer&&e.key==='Tab'){const list=[...document.querySelectorAll('#viewer button:not([disabled]),#viewer a[href],#viewer textarea,#viewer iframe')].filter(el=>el.getClientRects().length);const first=list[0],last=list.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}}
