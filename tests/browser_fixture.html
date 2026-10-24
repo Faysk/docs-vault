@@ -65,6 +65,34 @@
     await wait(3100);
     check(viewer.hidden&&body.innerHTML==='','late iframe replaced closed viewer');
     log.push('Close cancels stale preview OK');
+    create('tests/synthetic.docx','Synthetic Word','DOCX');
+    w.VAULT_DATA.previewChunks['tests/synthetic.docx']='tests/word-preview.js';
+    d.querySelector('.nav-item[data-route="documents"]').click();
+    await until(()=>d.querySelector('[data-view="tests/synthetic.docx"]'),'Word card');
+    d.querySelector('[data-view="tests/synthetic.docx"]').click();
+    await until(()=>body.querySelector('iframe')&&body.getAttribute('aria-busy')==='false','Word HTML preview');
+    check(resources().some(x=>x.includes('word-preview.js')),'Word preview chunk not fetched');
+    d.querySelector('#viewer [data-close-viewer]').click();
+    log.push('Word preview OK');
+
+    create('tests/synthetic.pdf','Synthetic PDF','PDF');
+    d.querySelector('.nav-item[data-route="documents"]').click();
+    await until(()=>d.querySelector('[data-view="tests/synthetic.pdf"]'),'PDF card');
+    d.querySelector('[data-view="tests/synthetic.pdf"]').click();
+    await until(()=>body.querySelector('iframe')||body.querySelector('[data-retry-preview]'),'PDF embedded or recoverable error');
+    check(d.querySelector('#viewerOpen').getAttribute('href')==='tests/synthetic.pdf','PDF original link missing');
+    d.querySelector('#viewer [data-close-viewer]').click();
+    log.push('PDF loading/container OK');
+
+    for(let i=0;i<125;i++)create('tests/virtual-'+i+'.md','Synthetic volume '+i,'MD');
+    d.querySelector('.nav-item[data-route="documents"]').click();
+    await until(()=>d.querySelector('[data-page-list="library"]'),'paginated library');
+    check(d.querySelectorAll('[data-page-list="library"] .doc-card').length===40,'initial DOM not capped at 40');
+    const more=d.querySelector('[data-load-more="library"]');
+    check(more&&more.textContent.includes('restantes'),'load-more missing');
+    more.click();
+    check(d.querySelectorAll('[data-page-list="library"] .doc-card').length===80,'load-more did not append next 40');
+    log.push('40-card pages OK');
     output.dataset.outcome='pass';output.textContent=log.join(' | ');
   }catch(error){
     output.dataset.outcome='fail';output.textContent=error.message||String(error);
