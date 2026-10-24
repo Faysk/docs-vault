@@ -7,18 +7,18 @@ const chrome=process.env.CHROME_PATH||['/usr/bin/google-chrome','/usr/bin/chromi
 if(!chrome){console.error('Chrome/Chromium not found; browser smoke cannot be validated');process.exit(1);}
 const type={'.html':'text/html','.js':'text/javascript','.css':'text/css','.md':'text/markdown','.svg':'image/svg+xml','.json':'application/json'};
 function tinyPdf(){
-  const chunks=['%PDF-1.4\\n'], offsets=[0];
+  const chunks=['%PDF-1.4\n'], offsets=[0];
   const add=object=>{offsets.push(Buffer.byteLength(chunks.join('')));chunks.push(object);};
-  add('1 0 obj\\n<< /Type /Catalog /Pages 2 0 R >>\\nendobj\\n');
-  add('2 0 obj\\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\\nendobj\\n');
-  add('3 0 obj\\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 250 180] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>\\nendobj\\n');
-  add('4 0 obj\\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\\nendobj\\n');
+  add('1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n');
+  add('2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n');
+  add('3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 250 180] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>\nendobj\n');
+  add('4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n');
   const stream='BT /F1 18 Tf 30 90 Td (Synthetic PDF only) Tj ET';
-  add('5 0 obj\\n<< /Length '+Buffer.byteLength(stream)+' >>\\nstream\\n'+stream+'\\nendstream\\nendobj\\n');
+  add('5 0 obj\n<< /Length '+Buffer.byteLength(stream)+' >>\nstream\n'+stream+'\nendstream\nendobj\n');
   const start=Buffer.byteLength(chunks.join(''));
-  chunks.push('xref\\n0 6\\n0000000000 65535 f \\n');
-  offsets.slice(1).forEach(offset=>chunks.push(String(offset).padStart(10,'0')+' 00000 n \\n'));
-  chunks.push('trailer\\n<< /Size 6 /Root 1 0 R >>\\nstartxref\\n'+start+'\\n%%EOF\\n');
+  chunks.push('xref\n0 6\n0000000000 65535 f \n');
+  offsets.slice(1).forEach(offset=>chunks.push(String(offset).padStart(10,'0')+' 00000 n \n'));
+  chunks.push('trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n'+start+'\n%%EOF\n');
   return Buffer.from(chunks.join(''),'ascii');
 }
 const server=http.createServer((req,res)=>{
