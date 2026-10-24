@@ -56,7 +56,11 @@
   }
   async function ensurePreviewData(path){
     PV=window.VAULT_PREVIEWS||PV;
-    if(PV.text?.[path]||PV.docx?.[path])return;
+    if(PV.text?.[path]||PV.docx?.[path]){
+      const at=previewChunkLRU.indexOf(path);
+      if(at>=0){previewChunkLRU.splice(at,1);previewChunkLRU.push(path);}
+      return;
+    }
     const chunk=D.previewChunks?.[path];
     if(chunk){
       if(!previewChunkPromises.has(path))previewChunkPromises.set(path,injectScript(chunk,'prévia do documento').then(()=>{
