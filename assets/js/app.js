@@ -2,8 +2,9 @@
   'use strict';
 
   const D=window.VAULT_DATA;
-  const SI=window.VAULT_SEARCH_INDEX||{entries:[],stats:{}};
-  const PV=window.VAULT_PREVIEWS||{text:{},docx:{}};
+  const scriptConfig=document.currentScript?.dataset||{};
+  let SI=window.VAULT_SEARCH_INDEX||null;
+  let PV=window.VAULT_PREVIEWS||{text:{},docx:{}};
   if(!D) return;
 
   const main=document.getElementById('main');
@@ -17,14 +18,78 @@
   const threshold=Number(D.thresholdDays||90);
   const docState={owner:'all',category:'all',format:'all',sort:'name',favorite:false};
   const docByPath=new Map(D.documents.map(d=>[d.path,d]));
-  const searchEntryByPath=new Map((SI.entries||[]).map(e=>[e.path,e]));
-  const searchNormByPath=new Map((SI.entries||[]).filter(e=>e.text).map(e=>[e.path,norm(e.text)]));
+  const searchEntryByPath=new Map();
+  const searchNormByPath=new Map(); // Filled only when text is actually searched, never during boot.
+  let indexPromise=null,previewBundlePromise=null;
+  const previewChunkPromises=new Map(),previewChunkLRU=[];
+  const PREVIEW_CACHE_LIMIT=6;
+
+  function injectScript(src,label){
+    if(!src)return Promise.reject(new Error('Módulo '+label+' sem caminho configurado'));
+    return new Promise((resolve,reject)=>{
+      const el=document.createElement('script');let finished=false;
+      const done=err=>{if(finished)return;finished=true;clearTimeout(timeout);el.onload=null;el.onerror=null;if(err){el.remove();reject(err);}else resolve();};
+      const timeout=setTimeout(()=>done(new Error('Tempo esgotado carregando '+label)),25000);
+      el.async=true;el.onload=()=>done();el.onerror=()=>done(new Error('Falha ao carregar '+label));el.src=src;
+      document.head.appendChild(el);
+    });
+  }
+  async function ensureSearchIndex(){
+    if(SI)return SI;
+    if(!indexPromise)indexPromise=injectScript(scriptConfig.searchIndex,'índice de busca').then(()=>{
+      const loaded=window.VAULT_SEARCH_INDEX;
+      if(!loaded||!Array.isArray(loaded.entries))throw new Error('Índice de busca inválido');
+      SI=loaded;searchEntryByPath.clear();searchNormByPath.clear();
+      for(const entry of loaded.entries)searchEntryByPath.set(entry.path,entry);
+      return SI;
+    }).catch(err=>{indexPromise=null;throw err;});
+    return indexPromise;
+  }
+  async function ensurePreviewData(path){
+    PV=window.VAULT_PREVIEWS||PV;
+    if(PV.text?.[path]||PV.docx?.[path])return;
+    const chunk=D.previewChunks?.[path];
+    if(chunk){
+      if(!previewChunkPromises.has(path))previewChunkPromises.set(path,injectScript(chunk,'prévia do documento').then(()=>{
+        PV=window.VAULT_PREVIEWS||PV;
+        if(!PV.text?.[path]&&!PV.docx?.[path])throw new Error('Prévia não encontrada no módulo');
+        previewChunkLRU.push(path);
+        while(previewChunkLRU.length>PREVIEW_CACHE_LIMIT){const old=previewChunkLRU.shift();if(old!==path&&PV.text)delete PV.text[old];if(old!==path&&PV.docx)delete PV.docx[old];previewChunkPromises.delete(old);}
+      }).catch(err=>{previewChunkPromises.delete(path);throw err;}));
+      return previewChunkPromises.get(path);
+    }
+    if(!scriptConfig.previews)return;
+    if(!previewBundlePromise)previewBundlePromise=injectScript(scriptConfig.previews,'pacote de prévias').then(()=>{PV=window.VAULT_PREVIEWS||PV;}).catch(err=>{previewBundlePromise=null;throw err;});
+    return previewBundlePromise;
+  }
   const recordSourceMap=new Map();
   D.records.forEach(r=>(r.sources||[]).forEach(p=>recordSourceMap.set(p,r)));
 
   let validityOnly=false;
   let toastTimer;
   let searchTimer;
+  let searchSequence=0;
+  const resultPages=new Map();
+  const PAGE_SIZE=40;
+  const SEARCH_SLICE=60;
+  const pauseSearch=()=>new Promise(resolve=>setTimeout(resolve,0));
+  function cancelPendingSearch(){searchSequence++;clearTimeout(searchTimer);search.removeAttribute('aria-busy');main.removeAttribute('aria-busy');resultPages.clear();}
+  function searchAnnouncement(message){const live=document.getElementById('searchLive');if(live)live.textContent=message;}
+  function searchStatus(q,phase,message,retry=false){
+    const busy=phase==='indexing'||phase==='searching';search.setAttribute('aria-busy',String(busy));main.setAttribute('aria-busy',String(busy));
+    main.innerHTML=`<div class="page-shell"><div class="search-progress" data-search-phase="${phase}"><p class="eyebrow">Pesquisa global</p><h1>“${esc(q)}”</h1><div class="search-progress-row">${busy?'<span class="search-spinner" aria-hidden="true"></span>':''}<strong>${esc(message)}</strong></div>${retry?'<button type="button" class="button primary" data-retry-search>Tentar novamente</button>':''}</div></div>`;
+  }
+  function pageHTML(id,items,render,className){
+    const first=items.slice(0,PAGE_SIZE);resultPages.set(id,{items,render,offset:first.length});
+    return `<div class="${className}" data-page-list="${id}">${first.map(render).join('')}</div>${items.length>first.length?`<button class="button page-more" type="button" data-load-more="${id}">Carregar mais (${items.length-first.length} restantes)</button>`:''}`;
+  }
+  function appendPage(id,button){
+    const page=resultPages.get(id),grid=main.querySelector('[data-page-list="'+id+'"]');if(!page||!grid)return;
+    const next=page.items.slice(page.offset,page.offset+PAGE_SIZE);
+    grid.insertAdjacentHTML('beforeend',next.map(page.render).join(''));page.offset+=next.length;
+    const remaining=page.items.length-page.offset;
+    if(remaining)button.textContent=`Carregar mais (${remaining} restantes)`;else button.remove();
+  }
   let currentViewer=null;
   let noteTimer;
 
