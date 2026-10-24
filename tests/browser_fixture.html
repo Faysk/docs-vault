@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="UTF-8"><title>Synthetic Vault Browser Smoke</title></head>
+<body><div id="browser-smoke-result" data-outcome="pending">Iniciando teste…</div>
+<iframe id="vault-frame" src="../index.html" style="width:1150px;height:800px"></iframe>
+<script>
+(async()=>{
+  const output=document.getElementById('browser-smoke-result');
+  const frame=document.getElementById('vault-frame');
+  const wait=(ms=50)=>new Promise(r=>setTimeout(r,ms));
+  const until=async(predicate,label,timeout=10000)=>{
+    const start=Date.now();
+    while(Date.now()-start<timeout){const value=predicate();if(value)return value;await wait();}
+    throw new Error('Timeout: '+label);
+  };
+  const check=(condition,message)=>{if(!condition)throw new Error(message);};
+  const log=[];
+  try{
+    await until(()=>frame.contentWindow?.VAULT_DATA&&frame.contentDocument?.querySelector('#main .page-shell'),'initial dashboard');
+    const w=frame.contentWindow,d=frame.contentDocument;
+    const resources=()=>w.performance.getEntriesByType('resource').map(x=>x.name);
+    check(!resources().some(x=>/search-index\.example|previews\.example|\.preview\.js/.test(x)),'boot requested full-text or previews');
+    log.push('Lazy boot OK');
+    const search=d.querySelector('#globalSearch');
+    search.value='exemplo';search.dispatchEvent(new Event('input',{bubbles:true}));
+    await until(()=>d.querySelector('.search-summary')&&d.querySelector('.search-summary h1')?.textContent.includes('exemplo'),'indexed search');
+    check(d.querySelectorAll('[data-page-list="search-documents"] .doc-card').length===3,'expected three synthetic docs');
+    check(resources().some(x=>x.includes('search-index.example.js')),'index was not loaded on demand');
+    log.push('Indexed search OK');
+    search.value='zznotfound';search.dispatchEvent(new Event('input',{bubbles:true}));
+    await until(()=>d.querySelector('.search-summary h1')?.textContent.includes('zznotfound'),'latest search');
+    check(d.querySelector('.search-summary')?.textContent.includes('Nada encontrado'),'missing honest empty state');
+    log.push('Latest search OK');
+    search.value='';search.dispatchEvent(new Event('input',{bubbles:true}));
+    d.querySelector('.nav-item[data-route="documents"]').click();
+    await until(()=>d.querySelector('[data-page-list="library"] .doc-card'),'library');
+    const first=d.querySelector('[data-page-list="library"] [data-view]');
+    first.click();
+    const viewer=d.querySelector('#viewer'),body=d.querySelector('#viewerBody');
+    await until(()=>!viewer.hidden&&body.querySelector('.reader-shell')&&body.getAttribute('aria-busy')==='false','markdown preview');
+    check(resources().some(x=>x.includes('.preview.js')),'per-document preview chunk not loaded');
+    log.push('Chunk preview OK');
+    d.querySelector('#viewer [data-close-viewer]').click();
+    check(viewer.hidden,'viewer did not close');
+    const create=(path,title,format)=>w.VAULT_DATA.documents.push({id:'synthetic-'+format,owner:'demoa',title,category:'Fixture',format,path,size:99});
+    create('tests/missing-image.png','Synthetic missing image','PNG');
+    d.querySelector('.nav-item[data-route="documents"]').click();
+    await until(()=>d.querySelector('[data-view="tests/missing-image.png"]'),'missing image card');
+    d.querySelector('[data-view="tests/missing-image.png"]').click();
+    await until(()=>body.querySelector('[data-retry-preview]'),'broken image error');
+    check(body.getAttribute('aria-busy')==='false','viewer stayed busy on error');
+    check(d.querySelector('#viewerOpen').getAttribute('href')==='tests/missing-image.png','original link missing');
+    log.push('Image error/retry OK');
+    d.querySelector('#viewer [data-close-viewer]').click();
+    create('tests/slow-demo.html','Synthetic slow HTML','HTML');
+    d.querySelector('.nav-item[data-route="documents"]').click();
+    await until(()=>d.querySelector('[data-view="tests/slow-demo.html"]'),'slow doc card');
+    d.querySelector('[data-view="tests/slow-demo.html"]').click();
+    await wait(120);
+    check(body.getAttribute('aria-busy')==='true'&&body.querySelector('.loading-preview'),'loading disappeared before iframe completed');
+    log.push('Delayed iframe busy OK');
+    d.querySelector('#viewer [data-close-viewer]').click();
+    check(viewer.hidden,'viewer did not close during request');
+    await wait(3100);
+    check(viewer.hidden&&body.innerHTML==='','late iframe replaced closed viewer');
+    log.push('Close cancels stale preview OK');
+    output.dataset.outcome='pass';output.textContent=log.join(' | ');
+  }catch(error){
+    output.dataset.outcome='fail';output.textContent=error.message||String(error);
+    console.error('Browser smoke failed',error);
+  }
+})();
+</script></body></html>
