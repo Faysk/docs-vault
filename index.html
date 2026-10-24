@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#0a0d14">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' data: blob:; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; frame-src 'self' data: blob:; object-src 'self' data: blob:; connect-src 'self'; base-uri 'self'; form-action 'self'">
+  <title>Faysk Docs Vault · V3</title>
+  <meta name="description" content="Cofre documental local, privado e 100% offline.">
+  <link rel="icon" href="assets/icons/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/css/app.css">
+  <link rel="stylesheet" href="workspace.css?v=20261024">
+  <link rel="stylesheet" href="finish.css?v=20261024-polish">
+  <script defer src="finish.js?v=20261024-polish"></script>
+</head>
+<body data-workspace="valt">
+  <a class="skip-link" href="#main">Ir para o conteúdo</a>
+
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar" aria-label="Navegação principal">
+      <div class="brand-row">
+        <button class="brand" type="button" data-route="dashboard" aria-label="Abrir painel">
+          <span class="brand-mark" aria-hidden="true">F</span>
+          <span class="brand-copy"><strong>Faysk Docs</strong><small>Vault · V3</small></span>
+        </button>
+        <span class="offline-dot" title="Sem dependências externas" aria-label="Sem dependências externas"></span>
+      </div>
+
+      <section class="workspace-picker" aria-label="Workspace"><div class="workspace-label">WORKSPACE <span>03</span></div><details class="project-switch"><summary aria-label="Workspace: Docs Vault. Alterar projeto"><span class="project-icon" aria-hidden="true">V</span><span class="project-copy"><strong>Docs Vault</strong><small>Arquivo documental</small></span><span class="project-caret" aria-hidden="true">⌄</span></summary><nav class="project-options" aria-label="Projetos do servidor"><a href="/router/"><span class="project-icon" aria-hidden="true">R</span><span class="project-copy"><strong>Router Huawei</strong><small>Monitor da rede</small></span></a><a href="/s7/"><span class="project-icon" aria-hidden="true">S7</span><span class="project-copy"><strong>Galaxy S7 Edge</strong><small>SM-G935F · ARM64</small></span></a><a href="/valt/" aria-current="page"><span class="project-icon" aria-hidden="true">V</span><span class="project-copy"><strong>Docs Vault</strong><small>Arquivo documental</small></span><span class="project-check" aria-hidden="true">✓</span></a></nav></details></section>
+
+      <div class="vault-state" id="vaultState">
+        <span class="vault-state-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3 4 6v5c0 4.9 3.1 8.5 8 10 4.9-1.5 8-5.1 8-10V6l-8-3Z"/><path d="m9.5 12 1.7 1.7 3.8-4"/></svg></span>
+        <span><strong>Demonstração pública</strong><small id="vaultOrigin">Privado por padrão</small></span>
+      </div>
+
+      <nav class="primary-nav">
+        <p class="nav-label">Visão geral</p>
+        <button class="nav-item active" data-route="dashboard" type="button">
+          <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg></span>
+          <span>Painel</span><span class="nav-count" id="navActionCount"></span>
+        </button>
+        <button class="nav-item" data-route="documents" type="button">
+          <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 2h9l4 4v16H6z"/><path d="M14 2v5h5M9 12h6M9 16h6"/></svg></span>
+          <span>Documentos</span><span class="nav-count" id="navDocumentCount"></span>
+        </button>
+
+        <p class="nav-label">Atalhos</p>
+        <button class="nav-item" data-route="favorites" type="button">
+          <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-2.9-5.6 2.9 1.1-6.2L3 9.6l6.2-.9L12 3Z"/></svg></span>
+          <span>Favoritos</span><span class="nav-count" id="navFavoriteCount"></span>
+        </button>
+        <button class="nav-item" data-route="recent" type="button">
+          <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l-3 2M4.5 5.5 3 9l3.7-.4"/></svg></span>
+          <span>Recentes</span><span class="nav-count" id="navRecentCount"></span>
+        </button>
+
+        <p class="nav-label">Espaços</p>
+        <button class="nav-item" data-route="demoa" type="button"><span class="nav-avatar">A</span><span>Pessoa A</span><span class="nav-count" id="navDemoaCount"></span></button>
+        <button class="nav-item" data-route="demob" type="button"><span class="nav-avatar">B</span><span>Pessoa B</span><span class="nav-count" id="navDemobCount"></span></button>
+        <button class="nav-item" data-route="casa" type="button"><span class="nav-avatar home-avatar" aria-hidden="true">⌂</span><span>Casa</span><span class="nav-count" id="navCasaCount"></span></button>
+      </nav>
+
+      <div class="sidebar-spacer"></div>
+      <div class="sidebar-footer">
+        <button id="privacyToggle" class="utility-button" type="button" aria-pressed="false">
+          <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.8"/></svg></span>
+          <span class="utility-copy"><strong>Modo privacidade</strong><small id="privacyLabel">Dados visíveis</small></span><span class="toggle-track"><span></span></span>
+        </button>
+        <button id="themeToggle" class="utility-button compact" type="button">
+          <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9c0-.5 0-1-.1-1.5A7 7 0 0 1 12 3Z"/></svg></span>
+          <span class="utility-copy"><strong>Tema</strong><small id="themeLabel">Automático</small></span>
+        </button>
+        <button class="utility-button compact" type="button" data-open-tools>
+          <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M9.8 9.4a2.5 2.5 0 1 1 3.4 2.3c-.8.4-1.2.9-1.2 1.8M12 17h.01"/></svg></span>
+          <span class="utility-copy"><strong>Ferramentas</strong><small>Backup e atalhos</small></span>
+        </button>
+      </div>
+    </aside>
+
+    <section class="workspace">
+      <header class="topbar">
+        <button id="menuToggle" class="icon-button mobile-only" type="button" aria-label="Abrir menu"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+        <div class="search-wrap" id="searchWrap">
+          <span class="search-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg></span>
+          <input id="globalSearch" type="search" placeholder="Buscar nome, documento ou conteúdo interno…" autocomplete="off" spellcheck="false" aria-label="Pesquisar no arquivo">
+          <button id="clearSearch" class="clear-search" type="button" aria-label="Limpar pesquisa" hidden>×</button><kbd>/</kbd>
+        </div>
+        <div class="top-actions">
+          <button id="validityFocus" class="filter-button" type="button" aria-pressed="false"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3 2"/></svg><span>Validades</span></button>
+          <button id="utilityOpen" class="icon-button" type="button" aria-label="Ferramentas e atalhos" title="Ferramentas (?)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M9.8 9.4a2.5 2.5 0 1 1 3.4 2.3c-.8.4-1.2.9-1.2 1.8M12 17h.01"/></svg></button>
+          <span class="today-pill" id="todayPill"></span>
+        </div>
+      </header>
+      <main id="main" tabindex="-1" aria-live="polite"></main>
+    </section>
+  </div>
+
+  <div class="sidebar-backdrop" id="sidebarBackdrop" hidden></div>
+
+  <div id="viewer" class="viewer" hidden>
+    <div class="viewer-backdrop" data-close-viewer></div>
+    <section class="viewer-panel" role="dialog" aria-modal="true" aria-labelledby="viewerTitle">
+      <header class="viewer-header">
+        <div class="viewer-heading">
+          <span class="viewer-file-badge" id="viewerBadge">DOC</span>
+          <div><p class="eyebrow" id="viewerEyebrow">Visualização local</p><h2 id="viewerTitle">Documento</h2><p id="viewerPath" class="viewer-path"></p></div>
+        </div>
+        <div class="viewer-actions">
+          <button id="viewerFavorite" class="icon-button star-button" type="button" aria-label="Favoritar documento" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-2.9-5.6 2.9 1.1-6.2L3 9.6l6.2-.9L12 3Z"/></svg></button>
+          <a id="viewerDownload" class="button secondary viewer-download" download>Baixar cópia</a>
+          <a id="viewerOpen" class="button secondary" target="_blank" rel="noopener">Abrir original</a>
+          <button class="icon-button" data-close-viewer type="button" aria-label="Fechar visualização"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+        </div>
+      </header>
+      <div class="viewer-layout">
+        <div id="viewerBody" class="viewer-body"></div>
+        <aside id="viewerSide" class="viewer-side" aria-label="Informações do documento">
+          <div class="viewer-side-section"><p class="side-label">Documento</p><div id="viewerMeta" class="viewer-meta"></div></div>
+          <div class="viewer-side-section"><p class="side-label">Ações rápidas</p><div class="viewer-quick-actions">
+            <button id="copyPathButton" class="side-action" type="button">Copiar caminho</button>
+            <button id="copyLinkButton" class="side-action" type="button">Copiar link local</button>
+          </div></div>
+          <div class="viewer-side-section note-section"><div class="side-label-row"><p class="side-label">Nota local</p><span id="noteSaved" class="note-saved">Salva automaticamente</span></div><textarea id="viewerNote" rows="8" placeholder="Anotação privada deste navegador…"></textarea><p class="side-hint">Fica no armazenamento local deste navegador. Não altera o arquivo original.</p></div>
+        </aside>
+      </div>
+    </section>
+  </div>
+
+  <dialog id="utilityDialog" class="utility-dialog">
+    <form method="dialog" class="utility-dialog-panel">
+      <header><div><p class="eyebrow">Vault V3</p><h2>Ferramentas locais</h2><p>Atalhos, backup das preferências e diagnóstico do ambiente.</p></div><button class="icon-button" value="cancel" aria-label="Fechar"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button></header>
+      <div class="utility-dialog-grid">
+        <section><h3>Atalhos</h3><div class="shortcut-list"><div><kbd>/</kbd><span>Buscar no Vault</span></div><div><kbd>Esc</kbd><span>Fechar visualização</span></div><div><kbd>F</kbd><span>Favoritar documento aberto</span></div><div><kbd>?</kbd><span>Abrir esta janela</span></div><div><kbd>←</kbd><kbd>→</kbd><span>Navegar entre documentos</span></div></div></section>
+        <section><h3>Estado local</h3><p id="localStateSummary" class="dialog-copy"></p><div class="dialog-actions"><button id="exportState" type="button" class="button">Exportar backup</button><label class="button ghost file-label">Importar backup<input id="importState" type="file" accept="application/json,.json" hidden></label><button id="resetState" type="button" class="button danger">Limpar estado</button></div></section>
+        <section class="dialog-wide"><h3>Segurança e execução</h3><div id="runtimeInfo" class="runtime-info"></div></section>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="examples/data.example.js"></script>
+  <script src="examples/search-index.example.js"></script>
+  <script src="examples/previews.example.js"></script>
+  <script src="assets/js/app.js"></script>
+</body>
+</html>
