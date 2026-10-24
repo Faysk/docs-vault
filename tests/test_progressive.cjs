@@ -61,7 +61,7 @@ async function searchSuite(){
   await Promise.all([old,latest]);
   assert(announcements.at(-1).includes('beta'),'Only final query announces');
   assert(!announcements.some(s=>s.includes('alpha')),'Old query must not complete');
-  assert(c.main.innerHTML.includes('Nenhum resultado'),'Latest empty state');
+  assert(c.main.innerHTML.includes('Nada encontrado no arquivo local.'),'Latest empty state');
   console.log('Out-of-order search cancellation passed');
 }
 async function previewSuite(){
