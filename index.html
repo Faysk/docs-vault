@@ -83,7 +83,7 @@
         <button id="menuToggle" class="icon-button mobile-only" type="button" aria-label="Abrir menu"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
         <div class="search-wrap" id="searchWrap">
           <span class="search-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg></span>
-          <input id="globalSearch" type="search" placeholder="Buscar nome, documento ou conteúdo interno…" autocomplete="off" spellcheck="false" aria-label="Pesquisar no arquivo">
+          <input id="globalSearch" type="search" placeholder="Buscar nome, documento ou conteúdo interno…" autocomplete="off" spellcheck="false" aria-label="Pesquisar no arquivo" aria-controls="main" aria-describedby="searchLive">
           <button id="clearSearch" class="clear-search" type="button" aria-label="Limpar pesquisa" hidden>×</button><kbd>/</kbd>
         </div>
         <div class="top-actions">
@@ -92,7 +92,8 @@
           <span class="today-pill" id="todayPill"></span>
         </div>
       </header>
-      <main id="main" tabindex="-1" aria-live="polite"></main>
+      <div id="searchLive" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
+      <main id="main" tabindex="-1"></main>
     </section>
   </div>
 
@@ -141,8 +142,6 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script src="examples/data.example.js"></script>
-  <script src="examples/search-index.example.js"></script>
-  <script src="examples/previews.example.js"></script>
-  <script src="assets/js/app.js"></script>
+  <script src="assets/js/app.js" data-search-index="examples/search-index.example.js" data-previews="examples/previews.example.js"></script>
 </body>
 </html>
