@@ -38,3 +38,12 @@ Os números de Node VM não são p95, não representam FPS, LCP, INP ou tempo to
 ## Limites
 
 O repo público usa metadados e documentos sintéticos. A implantação LAN auditada pode ter módulos, índices, arquivos ou scripts que **não** constam do checkout público. Não executar deploy, coletar arquivos privados nem declarar metas de performance atingidas sem testes no ambiente real autorizados pelo responsável.
+
+
+## Atualização de homologação autorizada — 26/10/2026
+
+A implementação desta PR foi integrada aos arquivos privados e publicada no S7 em 25/10, com hashes do código conferidos; a verificação em 26/10 confirmou o mesmo código e HTTP 200. Dados, índices e documentos privados foram preservados e não estão no Git. Testes Node e fixtures no navegador integrado foram aprovados; delays/500/cancelamento foram exercitados em fixtures sintéticas, sem interromper fontes reais. Nenhum cache interno novo.
+
+O HTML privado foi integrado sem substituir perfis/dados: JS crítico (data.js+app.js) caiu de 1.144.191 para 232.253 bytes (~79,7%). Biblioteca inicial limitada a40 cards; índice carregado ao buscar, prévias ao abrir. Prévia Word real terminou com iframe pronto, busy=false e sem erro. Datas, busca127/1000/5000, última intenção, imagem/Word/PDF/frame/texto, timeout/retry/abort e paginação foram testados com conteúdo sintético. `/valt/` e arquivos privados permanecem no-store.
+
+Esses resultados validam a entrega funcional LAN e a redução de trabalho/bytes. Traces de INP/LCP/FPS no navegador executando fisicamente no Android e auditoria com leitor de tela não foram produzidos; não registrar metas universais como aprovadas. A primeira leitura completa sem cache no microSD ainda pode levar vários segundos. Medições HTTP e viewport móvel desktop não substituem o cliente físico.
